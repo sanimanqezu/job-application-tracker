@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SA Job Scanner</title>
+<style>
+:root{
+  --bg:#FAF9F7;--panel:#FFFFFF;--ink:#28242E;--ink2:#6B6474;--line:#E6E2DC;
+  --accent:#6553B8;--accentink:#4A3B96;--accsoft:#EFEBFA;
+  --live:#1F7A52;--livesoft:#E3F2EA;--grad:#9A6A12;--gradsoft:#F7EEDC;--unk:#8A8492;--unksoft:#EFEDF1;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#17151C;--panel:#201D27;--ink:#ECE9F2;--ink2:#9B94A8;--line:#322E3C;
+  --accent:#A493E8;--accentink:#C4B8F4;--accsoft:#2B2540;
+  --live:#5FCB96;--livesoft:#1D3A2C;--grad:#E0AE52;--gradsoft:#3A2F17;--unk:#8A8492;--unksoft:#2A2731;
+}}
+:root[data-theme="dark"]{--bg:#17151C;--panel:#201D27;--ink:#ECE9F2;--ink2:#9B94A8;--line:#322E3C;--accent:#A493E8;--accentink:#C4B8F4;--accsoft:#2B2540;--live:#5FCB96;--livesoft:#1D3A2C;--grad:#E0AE52;--gradsoft:#3A2F17;--unk:#8A8492;--unksoft:#2A2731;}
+:root[data-theme="light"]{--bg:#FAF9F7;--panel:#FFFFFF;--ink:#28242E;--ink2:#6B6474;--line:#E6E2DC;--accent:#6553B8;--accentink:#4A3B96;--accsoft:#EFEBFA;--live:#1F7A52;--livesoft:#E3F2EA;--grad:#9A6A12;--gradsoft:#F7EEDC;--unk:#8A8492;--unksoft:#EFEDF1;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Segoe UI",system-ui,-apple-system,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:0 20px 80px}
+header{padding:36px 0 16px;border-bottom:3px solid var(--ink)}
+.kick{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 8px}
+h1{font-family:Georgia,serif;font-size:clamp(26px,4.5vw,40px);margin:0 0 6px;line-height:1.1}
+.sub{color:var(--ink2);max-width:70ch;margin:0}
+.bar{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:16px 0}
+.stat{font-variant-numeric:tabular-nums}
+.stat b{font-family:Georgia,serif;font-size:22px;display:block;line-height:1}
+.stat span{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+.spacer{flex:1}
+button,.tab{font:inherit;cursor:pointer}
+.tabs{display:flex;gap:6px;margin-top:8px}
+.tab{border:1.5px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:8px 8px 0 0;padding:8px 16px;font-weight:600;border-bottom:none}
+.tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.toolbar{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 0;display:flex;gap:10px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line)}
+input[type=search]{flex:1 1 260px;padding:9px 14px;border:1.5px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit}
+input[type=search]:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+select{padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);font:inherit}
+label.chk{display:flex;gap:6px;align-items:center;color:var(--ink2);font-size:13px;cursor:pointer;white-space:nowrap}
+.btn{background:var(--accent);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:600}
+.btn:hover{filter:brightness(1.12)}
+.btn.ghost{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.count{color:var(--ink2);font-size:13px;white-space:nowrap}
+.tablewrap{overflow-x:auto;margin-top:14px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;min-width:820px}
+th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);font-weight:700;padding:12px 14px;border-bottom:2px solid var(--line);position:sticky;top:0;background:var(--panel)}
+td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--accsoft)}
+.role{font-weight:600}
+.co{color:var(--ink2);font-size:13.5px}
+.muted{color:var(--ink2);font-size:12.5px}
+.apply{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-size:13px;font-weight:700;padding:7px 15px;border-radius:7px;white-space:nowrap}
+.apply:hover{filter:brightness(1.12)}
+.apply.dir{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}
+.badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.b-live{background:var(--livesoft);color:var(--live)}.b-grad{background:var(--gradsoft);color:var(--grad)}
+.b-likely{background:var(--accsoft);color:var(--accentink)}.b-unk{background:var(--unksoft);color:var(--unk)}
+.b-jnr{background:var(--livesoft);color:var(--live)}
+.empty{padding:40px;text-align:center;color:var(--ink2)}
+.note{font-size:12.5px;color:var(--ink2);margin:8px 2px 0}
+#scanlog{white-space:pre-wrap;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:12px;max-height:220px;overflow:auto;display:none}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spin{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="kick">Local scanner · Gauteng &amp; SA tech roles · click → apply</p>
+  <h1>Active Apply Links</h1>
+  <p class="sub">Live openings pulled straight from company applicant-tracking systems. Click <strong>Apply</strong> on any row — it opens that company's own application page, where you upload your CV and submit. No middlemen.</p>
+  <div class="bar">
+    <div class="stat"><b id="s-jobs">—</b><span>Live openings</span></div>
+    <div class="stat"><b id="s-jnr">—</b><span>Junior / grad</span></div>
+    <div class="stat"><b id="s-co">—</b><span>Companies tracked</span></div>
+    <div class="stat"><b id="s-when">—</b><span>Last scan</span></div>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="rescan" title="Re-run the scan against every company's ATS">↻ Rescan</button>
+    <label class="chk"><input type="checkbox" id="deep"> deep probe</label>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-view="live">Live openings</button>
+    <button class="tab" data-view="dir">Company directory</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search role, company, city, or stack — “java”, “junior”, “pretoria”…">
+  <select id="seg"><option value="">All segments</option></select>
+  <label class="chk"><input type="checkbox" id="jnr"> Junior / grad only</label>
+  <span class="count" id="count"></span>
+</div>
+
+<div id="scanlog"></div>
+<div id="panel"></div>
+
+<p class="note" id="foot"></p>
+</div>
+
+<script>
+let JOBS=[], COMPANIES=[], META={}, view="live", q="", seg="", jnrOnly=false;
+const $=id=>document.getElementById(id);
+const FITC={live:"b-live",grad:"b-grad",likely:"b-likely",unk:"b-unk"};
+const FITL={live:"Live",grad:"Grad",likely:"Likely",unk:"Check"};
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const host=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch{return""}};
+
+async function load(){
+  const [j,c]=await Promise.all([fetch("/api/jobs").then(r=>r.json()),fetch("/api/companies").then(r=>r.json())]);
+  JOBS=j.jobs||[]; META=j; COMPANIES=Array.isArray(c)?c:[];
+  $("s-jobs").textContent=JOBS.length;
+  $("s-jnr").textContent=JOBS.filter(x=>x.junior).length;
+  $("s-co").textContent=COMPANIES.length;
+  $("s-when").textContent=META.scannedAt?new Date(META.scannedAt).toLocaleDateString(undefined,{month:"short",day:"numeric"}):"never";
+  const segs=[...new Set(COMPANIES.map(c=>c.segment))].sort();
+  $("seg").innerHTML='<option value="">All segments</option>'+segs.map(s=>`<option>${esc(s)}</option>`).join("");
+  render();
+}
+
+function liveRows(){
+  return JOBS.filter(j=>{
+    if(jnrOnly&&!j.junior)return false;
+    if(seg&&j.segment!==seg)return false;
+    if(q){const t=(j.title+" "+j.company+" "+j.location+" "+(j.stack||"")+" "+(j.city||"")).toLowerCase();if(!t.includes(q))return false}
+    return true;
+  });
+}
+function dirRows(){
+  return COMPANIES.filter(c=>{
+    if(seg&&c.segment!==seg)return false;
+    if(jnrOnly&&!(c.fit==="live"||c.fit==="grad"))return false;
+    if(q){const t=(c.name+" "+c.city+" "+(c.stack||"")+" "+(c.segment||"")+" "+(c.note||"")).toLowerCase();if(!t.includes(q))return false}
+    return true;
+  });
+}
+
+function render(){
+  const panel=$("panel");
+  if(view==="live"){
+    const rows=liveRows();
+    $("count").textContent=rows.length+" live openings";
+    if(!rows.length){
+      panel.innerHTML='<div class="tablewrap"><div class="empty">No live openings match yet.<br>Click <b>↻ Rescan</b> above (tick <b>deep probe</b> for a wider sweep), or switch to <b>Company directory</b> to browse every employer and apply on their careers page.</div></div>';
+    }else{
+      panel.innerHTML='<div class="tablewrap"><table><thead><tr><th>Apply</th><th>Role</th><th>Company</th><th>Location</th><th>Level</th><th>Stack</th></tr></thead><tbody>'+
+        rows.map(j=>`<tr>
+          <td><a class="apply" href="${esc(j.url)}" target="_blank" rel="noopener">Apply →</a></td>
+          <td><div class="role">${esc(j.title)}</div><div class="muted">${esc(host(j.url))}</div></td>
+          <td><div class="co">${esc(j.company)}</div></td>
+          <td class="muted">${esc(j.location||j.city||"—")}</td>
+          <td>${j.junior?'<span class="badge b-jnr">Junior</span>':'<span class="muted">—</span>'}</td>
+          <td class="muted">${esc(j.stack||"—")}</td>
+        </tr>`).join("")+'</tbody></table></div>';
+    }
+  }else{
+    const rows=dirRows();
+    $("count").textContent=rows.length+" companies";
+    panel.innerHTML='<div class="tablewrap"><table><thead><tr><th>Careers</th><th>Company</th><th>City</th><th>Hiring</th><th>Stack</th><th>Notes</th></tr></thead><tbody>'+
+      rows.map(c=>`<tr>
+        <td><a class="apply dir" href="${esc(c.apply)}" target="_blank" rel="noopener">Open →</a></td>
+        <td><div class="role">${esc(c.name)}</div><div class="muted">${esc(host(c.apply))}</div></td>
+        <td class="muted">${esc(c.city)}</td>
+        <td><span class="badge ${FITC[c.fit]||'b-unk'}">${FITL[c.fit]||'Check'}</span></td>
+        <td class="muted">${esc(c.stack||"—")}</td>
+        <td class="muted">${esc(c.note||"")}</td>
+      </tr>`).join("")+'</tbody></table></div>';
+  }
+}
+
+$("q").addEventListener("input",e=>{q=e.target.value.trim().toLowerCase();render()});
+$("seg").addEventListener("change",e=>{seg=e.target.value;render()});
+$("jnr").addEventListener("change",e=>{jnrOnly=e.target.checked;render()});
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");view=t.dataset.view;render();
+}));
+$("rescan").addEventListener("click",async()=>{
+  const btn=$("rescan"),log=$("scanlog"),deep=$("deep").checked;
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Scanning…';
+  log.style.display="block";log.textContent="Scanning every company's ATS"+(deep?" with deep probe (this takes a minute)…":"…");
+  try{
+    const r=await fetch("/api/scan"+(deep?"?probe=1":"")).then(r=>r.json());
+    log.textContent=r.log||"(done)";
+    await load();
+  }catch(e){log.textContent="Scan failed: "+e.message}
+  btn.disabled=false;btn.textContent="↻ Rescan";
+});
+$("foot").textContent="Tip: the fast scan reads companies already on Greenhouse/Lever/Recruitee/Workable/SmartRecruiters/Breezy. Tick “deep probe” before Rescan to also guess ATS tokens and try each company's own /careers endpoints — slower, but finds more.";
+load();
+</script>
+</body>
+</html>

@@ -11,6 +11,15 @@ frontend/.next/
 frontend/out/
 frontend/.env.local
 
+# Secrets — never commit real API keys / passwords (keep the .example templates)
+secrets.properties
+backend/secrets.properties
+**/secrets.properties
+.env
+**/.env
+!.env.example
+!**/.env.example
+
 # Docker
 *.log
 

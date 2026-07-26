@@ -20,6 +20,9 @@ public interface JobApplicationRepository extends JpaRepository<JobApplication, 
 
     Optional<JobApplication> findByIdAndUserId(Long id, Long userId);
 
+    /** Used to avoid applying to the same job link twice. */
+    Optional<JobApplication> findFirstByUserIdAndJobUrl(Long userId, String jobUrl);
+
     long countByUserId(Long userId);
 
     long countByUserIdAndStatus(Long userId, ApplicationStatus status);

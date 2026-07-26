@@ -7,6 +7,11 @@ import type {
   JobApplication,
   JobApplicationRequest,
   ApplicationStatus,
+  ScannedJob,
+  DiscoverStats,
+  ScanSummary,
+  CompanyRow,
+  HarvestStatus,
 } from "@/types";
 
 const api = axios.create({
@@ -82,6 +87,31 @@ export const interviewsApi = {
 // Dashboard
 export const dashboardApi = {
   getStats: () => api.get<DashboardStats>("/api/dashboard"),
+};
+
+// Discover (live job scanner)
+export const discoverApi = {
+  list: (params: {
+    onlyNew?: boolean;
+    q?: string;
+    junior?: boolean;
+    segment?: string;
+    minScore?: number;
+  }) => api.get<ScannedJob[]>("/api/discover", { params }),
+
+  stats: () => api.get<DiscoverStats>("/api/discover/stats"),
+
+  companies: () => api.get<CompanyRow[]>("/api/discover/companies"),
+
+  scan: (probe: boolean) =>
+    api.post<ScanSummary>("/api/discover/scan", null, { params: { probe } }),
+
+  apply: (id: number) => api.post<JobApplication>(`/api/discover/${id}/apply`),
+
+  harvest: () => api.get<HarvestStatus>("/api/discover/harvest"),
+
+  setHarvest: (enabled: boolean) =>
+    api.post<{ enabled: boolean }>("/api/discover/harvest", null, { params: { enabled } }),
 };
 
 export default api;

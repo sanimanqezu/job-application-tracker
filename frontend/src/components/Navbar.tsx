@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/applicationStore";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/discover", label: "Discover Jobs" },
   { href: "/applications", label: "Applications" },
   { href: "/board", label: "Kanban Board" },
 ];

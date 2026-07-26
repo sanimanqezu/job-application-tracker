@@ -106,3 +106,56 @@ export const ALL_STATUSES: ApplicationStatus[] = [
   "REJECTED",
   "WITHDRAWN",
 ];
+
+// --- Discover (live job scanner) ---
+
+export interface ScannedJob {
+  id: number;
+  source: string;
+  company: string;
+  title: string;
+  location: string | null;
+  url: string;
+  stack: string | null;
+  segment: string | null;
+  city: string | null;
+  junior: boolean;
+  matchScore: number;
+  matchedSkills: string | null;
+  snippet: string | null;
+  postedAt: string | null;
+  firstSeenAt: string | null;
+}
+
+export interface HarvestStatus {
+  enabled: boolean;
+  companiesTotal: number;
+  companiesScanned: number;
+  companiesPending: number;
+  jobsTotal: number;
+}
+
+export interface DiscoverStats {
+  total: number;
+  newForYou: number;
+  companies: number;
+}
+
+export interface ScanSummary {
+  companiesScanned: number;
+  boardsWithOpenings: number;
+  jobsDiscovered: number;
+  jobsStored: number;
+  newlyAdded: number;
+}
+
+export interface CompanyRow {
+  name: string;
+  city: string;
+  segment: string;
+  stack: string | null;
+  size: string | null;
+  fit: string | null;
+  apply: string;
+  note: string | null;
+}

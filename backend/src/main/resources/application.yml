@@ -1,6 +1,14 @@
 spring:
+  # Load real secrets from a gitignored file (or environment variables). The
+  # file is optional, so the app still starts if it's missing — keys just stay
+  # empty and the Adzuna source is skipped. Covers running from ./backend or root.
+  config:
+    import: "optional:file:./secrets.properties,optional:file:./backend/secrets.properties,optional:file:../secrets.properties"
+
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/jobtracker}
+    # Local runs use a DEDICATED Postgres on 5433 (port 5432 is often taken by
+    # another project's container). Override DB_URL if yours lives elsewhere.
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/jobtracker}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -21,6 +29,37 @@ spring:
 
 server:
   port: ${PORT:8080}
+
+# Background job harvester: scans the company universe continuously.
+scanner:
+  enabled: ${SCANNER_ENABLED:true}   # set false to pause background scanning
+  batch: ${SCANNER_BATCH:25}         # deep-probe 25 companies per tick to learn their ATS fast
+  tick-ms: ${SCANNER_TICK_MS:6000}
+
+# Ingestor: pops the company queue on a strict beat and adds a batch (logs each).
+ingest:
+  batch: ${INGEST_BATCH:8}           # companies added per beat
+  tick-ms: ${INGEST_TICK_MS:6000}    # every 6 seconds → a visible increase
+
+# Adzuna job aggregator — real SA jobs (incl. banks/universities/retailers that
+# have no ATS API). Keys come from secrets.properties or env vars, NEVER hard-coded.
+adzuna:
+  enabled: ${ADZUNA_ENABLED:true}
+  app-id: ${ADZUNA_APP_ID:}
+  app-key: ${ADZUNA_APP_KEY:}
+  country: ${ADZUNA_COUNTRY:za}
+
+# Live company discovery from Wikidata's SPARQL API — refills the queue.
+wikidata:
+  enabled: ${WIKIDATA_ENABLED:true}
+  page-size: ${WIKIDATA_PAGE_SIZE:60}
+  tick-ms: ${WIKIDATA_TICK_MS:7000}
+
+# Second live source: DBpedia SPARQL — different coverage, also refills the queue.
+dbpedia:
+  enabled: ${DBPEDIA_ENABLED:true}
+  page-size: ${DBPEDIA_PAGE_SIZE:100}
+  tick-ms: ${DBPEDIA_TICK_MS:15000}
 
 app:
   jwt:

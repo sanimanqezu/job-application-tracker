@@ -20,6 +20,11 @@ backend/secrets.properties
 !.env.example
 !**/.env.example
 
+# This repo is PRIVATE — the local dev keys are committed here for cross-device
+# convenience. IMPORTANT: before ever making this repo public, delete the line
+# below, rotate the Adzuna key, and stop tracking backend/secrets.properties.
+!backend/secrets.properties
+
 # Docker
 *.log
 

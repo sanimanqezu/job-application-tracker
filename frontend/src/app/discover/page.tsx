@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Navbar from "@/components/Navbar";
-import { discoverApi } from "@/lib/api";
+import { discoverApi, profileApi } from "@/lib/api";
 import { useAuthStore } from "@/store/applicationStore";
-import type { ScannedJob, DiscoverStats, ScanSummary, HarvestStatus } from "@/types";
+import { yearsLabel } from "@/types";
+import type { ScannedJob, DiscoverStats, ScanSummary, HarvestStatus, Profile } from "@/types";
 
 function matchColor(score: number): string {
   if (score >= 65) return "bg-green-100 text-green-800";
@@ -38,6 +40,11 @@ export default function DiscoverPage() {
   const [juniorOnly, setJuniorOnly] = useState(false);
   const [minScore, setMinScore] = useState(0);
   const [harvest, setHarvestState] = useState<HarvestStatus | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    profileApi.get().then((r) => setProfile(r.data)).catch(() => {});
+  }, []);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -123,9 +130,18 @@ export default function DiscoverPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Discover Jobs</h1>
             <p className="text-gray-500 mt-1">
-              Openings ranked by how well they fit <span className="font-semibold text-gray-700">your CV</span> (read from the job description).
-              Senior roles, roles needing more than 2 years, and matches under 15% are filtered out. Click{" "}
-              <span className="font-semibold text-gray-700">Apply</span> to open the company&apos;s page and add it to your board.
+              {profile?.desiredJob ? (
+                <>
+                  Openings ranked against your profile —{" "}
+                  <span className="font-semibold text-gray-700">{profile.desiredJob}</span>,{" "}
+                  {yearsLabel(profile.yearsExperience)}, and your CV. Matches under 15% are hidden.{" "}
+                </>
+              ) : (
+                <>Openings ranked against your CV and desired job. Matches under 15% are hidden. </>
+              )}
+              <Link href="/profile" className="text-indigo-600 font-medium hover:underline">
+                Edit profile
+              </Link>
             </p>
             {harvest && (
               <p className="text-xs text-gray-400 mt-1">
@@ -165,6 +181,18 @@ export default function DiscoverPage() {
             </div>
           </div>
         </div>
+
+        {profile && !profile.cv && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm flex items-center justify-between gap-3">
+            <span>Add your CV to get jobs matched to you — you&apos;re currently seeing default rankings.</span>
+            <Link
+              href="/profile"
+              className="shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-semibold rounded-md hover:bg-amber-700"
+            >
+              Complete profile
+            </Link>
+          </div>
+        )}
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -221,7 +249,8 @@ export default function DiscoverPage() {
             <p className="text-gray-400 text-sm mt-1">
               The harvester is still working through the companies. Hit{" "}
               <span className="font-semibold">↻ Rescan live</span> (tick <span className="font-semibold">deep probe</span> for a wider sweep),
-              or loosen the filters above. Genuinely junior roles requiring ≤2 years are rare, so this list stays selective.
+              or loosen the filters above. If nothing fits, refine your{" "}
+              <Link href="/profile" className="font-semibold text-indigo-600 hover:underline">CV or target job</Link>.
             </p>
           </div>
         ) : (

@@ -22,11 +22,16 @@ public record ScannedJobResponse(
         LocalDateTime firstSeenAt
 ) {
     public static ScannedJobResponse from(ScannedJob j) {
+        return from(j, j.getMatchScore(), j.getMatchedSkills());
+    }
+
+    /** Same row, but with a match score/skills re-computed for a supplied CV. */
+    public static ScannedJobResponse from(ScannedJob j, int matchScore, String matchedSkills) {
         String desc = j.getDescription();
         String snippet = desc == null ? null : (desc.length() > 300 ? desc.substring(0, 300) + "…" : desc);
         return new ScannedJobResponse(j.getId(), j.getSource(), j.getCompany(), j.getTitle(),
                 j.getLocation(), j.getUrl(), j.getStack(), j.getSegment(), j.getCity(),
-                j.isJunior(), j.getMatchScore(), j.getMatchedSkills(), snippet,
+                j.isJunior(), matchScore, matchedSkills, snippet,
                 j.getPostedAt(), j.getFirstSeenAt());
     }
 }

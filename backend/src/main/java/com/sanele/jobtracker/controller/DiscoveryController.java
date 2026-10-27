@@ -15,6 +15,7 @@ import com.sanele.jobtracker.repository.JobApplicationRepository;
 import com.sanele.jobtracker.repository.ScannedJobRepository;
 import com.sanele.jobtracker.repository.UserRepository;
 import com.sanele.jobtracker.scan.CompanyHarvester;
+import com.sanele.jobtracker.scan.CvMatcher;
 import com.sanele.jobtracker.scan.JobScanService;
 import com.sanele.jobtracker.service.JobApplicationService;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -46,6 +48,7 @@ public class DiscoveryController {
     private final CompanyRepository companyRepository;
     private final CompanyHarvester harvester;
     private final JobApplicationRepository jobApplicationRepository;
+    private final CvMatcher cvMatcher;
 
     private User user(UserDetails principal) {
         return userRepository.findByUsername(principal.getUsername())
@@ -60,13 +63,42 @@ public class DiscoveryController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean junior,
             @RequestParam(required = false) String segment,
-            @RequestParam(defaultValue = "0") int minScore) {
+            @RequestParam(defaultValue = "0") int minScore,
+            @RequestParam(required = false) String cv,
+            @RequestParam(required = false) Double years) {
         String query = q == null ? "" : q.trim();
         String seg = segment == null ? "" : segment.trim();
         boolean juniorOnly = Boolean.TRUE.equals(junior);
         int floor = Math.max(16, minScore);   // never return matches of 15% or lower
+        User u = user(principal);
+
+        // Rank against the user's OWN profile: their stored CV + desired job + years
+        // (a request may override cv/years, but normally it comes from the account).
+        // We pull with a floor of 0 (the stored score is only a fallback) and apply
+        // `floor` to the freshly-computed, per-user score.
+        String cvText = (cv != null && !cv.isBlank()) ? cv : u.getCv();
+        if (cvText != null && !cvText.isBlank()) {
+            String desired = u.getDesiredJob();
+            double yrs = years != null ? Math.max(0d, years)
+                    : (u.getYearsExperience() != null ? u.getYearsExperience() : 1d);
+            List<ScannedJob> pool = onlyNew
+                    ? scannedJobRepository.findNewForUser(u.getId(), query, juniorOnly, seg, 0)
+                    : scannedJobRepository.findAllMatching(query, juniorOnly, seg, 0);
+            List<ScannedJobResponse> scored = pool.stream()
+                    .map(j -> {
+                        CvMatcher.MatchResult m = cvMatcher.matchProfile(
+                                j.getTitle(), j.getDescription(), cvText, desired, yrs);
+                        return ScannedJobResponse.from(j, m.score(), m.matchedSkills());
+                    })
+                    .filter(r -> r.matchScore() >= floor)
+                    .sorted(Comparator.comparingInt(ScannedJobResponse::matchScore).reversed())
+                    .toList();
+            return ResponseEntity.ok(scored);
+        }
+
+        // No CV on file yet → fall back to the stored default score.
         List<ScannedJob> jobs = onlyNew
-                ? scannedJobRepository.findNewForUser(user(principal).getId(), query, juniorOnly, seg, floor)
+                ? scannedJobRepository.findNewForUser(u.getId(), query, juniorOnly, seg, floor)
                 : scannedJobRepository.findAllMatching(query, juniorOnly, seg, floor);
         return ResponseEntity.ok(jobs.stream().map(ScannedJobResponse::from).toList());
     }

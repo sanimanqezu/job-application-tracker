@@ -12,6 +12,9 @@ import type {
   ScanSummary,
   CompanyRow,
   HarvestStatus,
+  RegisterInput,
+  Profile,
+  ProfileUpdate,
 } from "@/types";
 
 const api = axios.create({
@@ -45,11 +48,29 @@ api.interceptors.response.use(
 
 // Auth
 export const authApi = {
-  register: (username: string, email: string, password: string) =>
-    api.post<AuthResponse>("/api/auth/register", { username, email, password }),
+  register: (data: RegisterInput) =>
+    api.post<AuthResponse>("/api/auth/register", data),
 
   login: (username: string, password: string) =>
     api.post<AuthResponse>("/api/auth/login", { username, password }),
+};
+
+// Career profile (CV, desired job, years) — set at sign-up, editable later
+export const profileApi = {
+  get: () => api.get<Profile>("/api/profile"),
+  update: (data: ProfileUpdate) => api.put<Profile>("/api/profile", data),
+};
+
+// CV upload → extracted plain text (PDF/DOCX). Content-Type left unset so the
+// browser adds the multipart boundary itself.
+export const cvApi = {
+  extract: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return api.post<{ text: string }>("/api/cv/extract", fd, {
+      headers: { "Content-Type": undefined as unknown as string },
+    });
+  },
 };
 
 // Applications
@@ -97,6 +118,8 @@ export const discoverApi = {
     junior?: boolean;
     segment?: string;
     minScore?: number;
+    cv?: string;
+    years?: number;
   }) => api.get<ScannedJob[]>("/api/discover", { params }),
 
   stats: () => api.get<DiscoverStats>("/api/discover/stats"),

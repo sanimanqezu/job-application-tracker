@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 import { useAuthStore } from "@/store/applicationStore";
+import CvUpload from "@/components/CvUpload";
+import PasswordInput from "@/components/PasswordInput";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,12 +16,20 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    desiredJob: "",
+    cv: "",
+    cvFileName: "",
   });
+  const [years, setYears] = useState(2);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+      >
+    ) => {
       setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     },
     []
@@ -33,15 +43,30 @@ export default function RegisterPage() {
       setError("Passwords do not match");
       return;
     }
-
     if (form.password.length < 6) {
       setError("Password must be at least 6 characters");
+      return;
+    }
+    if (!form.desiredJob.trim()) {
+      setError("Tell us the job you're looking for");
+      return;
+    }
+    if (form.cv.trim().length < 10) {
+      setError("Please paste your CV so we can match you to jobs");
       return;
     }
 
     setLoading(true);
     try {
-      const res = await authApi.register(form.username, form.email, form.password);
+      const res = await authApi.register({
+        username: form.username,
+        email: form.email,
+        password: form.password,
+        desiredJob: form.desiredJob.trim(),
+        cv: form.cv.trim(),
+        cvFileName: form.cvFileName,
+        yearsExperience: years,
+      });
       setAuth({ username: res.data.username, email: res.data.email }, res.data.token);
       router.push("/dashboard");
     } catch (err: unknown) {
@@ -52,8 +77,12 @@ export default function RegisterPage() {
     }
   };
 
+  const inputClass =
+    "w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition";
+  const labelClass = "block text-sm font-medium text-gray-700 mb-1.5";
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-indigo-600 rounded-2xl mb-4">
@@ -72,7 +101,9 @@ export default function RegisterPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create account</h1>
-          <p className="text-gray-500 mt-1">Start tracking your applications</p>
+          <p className="text-gray-500 mt-1">
+            Add your CV and we&apos;ll match you to jobs
+          </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
@@ -84,10 +115,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
+              <label htmlFor="username" className={labelClass}>
                 Username
               </label>
               <input
@@ -100,16 +128,13 @@ export default function RegisterPage() {
                 maxLength={50}
                 value={form.username}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className={inputClass}
                 placeholder="Choose a username"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
+              <label htmlFor="email" className={labelClass}>
                 Email
               </label>
               <input
@@ -120,50 +145,97 @@ export default function RegisterPage() {
                 required
                 value={form.email}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className={inputClass}
                 placeholder="you@example.com"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
+              <label htmlFor="password" className={labelClass}>
                 Password
               </label>
-              <input
+              <PasswordInput
                 id="password"
                 name="password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 value={form.password}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className={inputClass}
                 placeholder="At least 6 characters"
               />
             </div>
 
             <div>
-              <label
-                htmlFor="confirmPassword"
-                className="block text-sm font-medium text-gray-700 mb-1.5"
-              >
+              <label htmlFor="confirmPassword" className={labelClass}>
                 Confirm Password
               </label>
-              <input
+              <PasswordInput
                 id="confirmPassword"
                 name="confirmPassword"
-                type="password"
                 autoComplete="new-password"
                 required
                 value={form.confirmPassword}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                className={inputClass}
                 placeholder="Repeat your password"
               />
+            </div>
+
+            <div className="border-t border-gray-100 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-4">
+                Your career profile
+              </p>
+
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="desiredJob" className={labelClass}>
+                    Job you&apos;re looking for
+                  </label>
+                  <input
+                    id="desiredJob"
+                    name="desiredJob"
+                    type="text"
+                    required
+                    maxLength={150}
+                    value={form.desiredJob}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="e.g. Registered Nurse, Software Developer, Electrician"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="years" className={labelClass}>
+                    Years of experience in that job
+                  </label>
+                  <input
+                    id="years"
+                    name="years"
+                    type="number"
+                    min={0}
+                    max={60}
+                    step={0.5}
+                    required
+                    value={years}
+                    onChange={(e) => setYears(e.target.value === "" ? 0 : Number(e.target.value))}
+                    className={inputClass}
+                    placeholder="e.g. 2.5"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClass}>Your CV</label>
+                  <CvUpload
+                    value={form.cv}
+                    fileName={form.cvFileName}
+                    onChange={(t, name) =>
+                      setForm((prev) => ({ ...prev, cv: t, cvFileName: name }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
 
             <button
@@ -178,10 +250,7 @@ export default function RegisterPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Already have an account?{" "}
-          <Link
-            href="/login"
-            className="text-indigo-600 font-medium hover:underline"
-          >
+          <Link href="/login" className="text-indigo-600 font-medium hover:underline">
             Sign in
           </Link>
         </p>

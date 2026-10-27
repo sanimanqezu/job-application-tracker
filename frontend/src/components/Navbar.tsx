@@ -9,6 +9,7 @@ const navLinks = [
   { href: "/discover", label: "Discover Jobs" },
   { href: "/applications", label: "Applications" },
   { href: "/board", label: "Kanban Board" },
+  { href: "/profile", label: "Profile" },
 ];
 
 export default function Navbar() {

@@ -50,6 +50,39 @@ export interface AuthResponse {
   email: string;
 }
 
+export interface RegisterInput {
+  username: string;
+  email: string;
+  password: string;
+  cv: string;
+  cvFileName: string;
+  desiredJob: string;
+  yearsExperience: number;
+}
+
+export interface Profile {
+  username: string;
+  email: string;
+  cv: string | null;
+  cvFileName: string | null;
+  desiredJob: string | null;
+  yearsExperience: number | null;
+  jobCategory: string | null;
+}
+
+export interface ProfileUpdate {
+  cv: string;
+  cvFileName: string;
+  desiredJob: string;
+  yearsExperience: number;
+}
+
+export function yearsLabel(value: number | null | undefined): string {
+  if (value == null) return "—";
+  const n = Number(value);
+  return `${n} ${n === 1 ? "year" : "years"}`;
+}
+
 export interface JobApplicationRequest {
   company: string;
   role: string;

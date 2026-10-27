@@ -6,6 +6,7 @@ import com.sanele.jobtracker.dto.RegisterRequest;
 import com.sanele.jobtracker.entity.User;
 import com.sanele.jobtracker.exception.ConflictException;
 import com.sanele.jobtracker.repository.UserRepository;
+import com.sanele.jobtracker.scan.JobCategoryEstimator;
 import com.sanele.jobtracker.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -25,6 +26,7 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
+    private final JobCategoryEstimator categoryEstimator;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -39,6 +41,11 @@ public class AuthService {
                 .username(request.username())
                 .email(request.email())
                 .passwordHash(passwordEncoder.encode(request.password()))
+                .cv(request.cv())
+                .cvFileName(request.cvFileName())
+                .desiredJob(request.desiredJob())
+                .yearsExperience(request.yearsExperience())
+                .jobCategory(categoryEstimator.estimate(request.desiredJob(), request.cv()))
                 .build();
 
         userRepository.save(user);

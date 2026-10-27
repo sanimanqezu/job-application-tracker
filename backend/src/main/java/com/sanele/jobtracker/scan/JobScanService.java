@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.*;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Runs the live scan: fetch every company's ATS boards, filter, and upsert (dedup on URL). */
@@ -33,43 +32,12 @@ public class JobScanService {
 
     // South-African location filtering lives in SaLocation (reads the job's own
     // location, not the company name, and knows SA cities/provinces/townships).
-    private static final Pattern DEV = Pattern.compile(
-            "developer|engineer(ing)?|software|full[\\s-]?stack|back[\\s-]?end|front[\\s-]?end|web dev|\\bjava\\b|\\.net|\\bc#\\b|react|node|python|golang|\\bgo\\b|typescript|\\bqa\\b|test automation|programmer|devops|\\bsre\\b|mobile|android|\\bios\\b|data engineer|data scien|machine learning|\\bml\\b|cloud engineer",
-            Pattern.CASE_INSENSITIVE);
+    // JUNIOR only TAGS a row's level (for the "junior only" toggle) — it no longer
+    // excludes anything. All roles and levels are stored; ranking is per-user, done
+    // against each person's CV at read time.
     private static final Pattern JUNIOR = Pattern.compile(
             "\\b(junior|jnr|graduate|grad|intern|internship|entry[- ]?level|trainee|associate|0[\\s-]?2\\s*years?)\\b",
             Pattern.CASE_INSENSITIVE);
-
-    // --- hard exclusion rules (never store these) ---
-    // Titles above the junior / ≤2-year band. Aggregators (Adzuna) truncate the
-    // job body, so the TITLE is often the only reliable seniority signal — recruiters
-    // almost always label the level there (Intermediate, Mid, Senior, II/III…).
-    private static final Pattern SENIOR_TITLE = Pattern.compile(
-            "\\b(senior|snr|sr\\.?|lead|principal|staff|head\\s+of|architect|manager|expert|director|vp|chief|"
-            + "advanced|intermediate|mid[\\s-]?level|mid[\\s-]?senior|mid|experienced)\\b|\\b(ii|iii|iv)\\b",
-            Pattern.CASE_INSENSITIVE);
-    // "N years ... experience" / "experience ... N years" / "minimum/at least N years"
-    private static final List<Pattern> YEARS_CTX = List.of(
-            Pattern.compile("(\\d{1,2})\\s*\\+?\\s*years?[^.\\n]{0,30}experience", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("experience[^.\\n]{0,30}(\\d{1,2})\\s*\\+?\\s*years?", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("(?:minimum|at least|min\\.?)\\s*(?:of\\s*)?(\\d{1,2})\\s*\\+?\\s*years?", Pattern.CASE_INSENSITIVE));
-    private static final int MIN_MATCH = 15;   // strictly greater than 15%
-
-    /** Smallest required-experience figure found in the description, or -1 if none. */
-    private static int minRequiredYears(String desc) {
-        if (desc == null || desc.isBlank()) return -1;
-        int min = Integer.MAX_VALUE;
-        for (Pattern p : YEARS_CTX) {
-            Matcher mm = p.matcher(desc);
-            while (mm.find()) {
-                try {
-                    int y = Integer.parseInt(mm.group(1));
-                    if (y >= 0 && y < 40) min = Math.min(min, y);
-                } catch (NumberFormatException ignore) { /* skip */ }
-            }
-        }
-        return min == Integer.MAX_VALUE ? -1 : min;
-    }
 
     /** A raw job tagged with its source company (used between the fetch and upsert phases). */
     private record Found(Company company, String source, RawJob job) {}
@@ -146,28 +114,22 @@ public class JobScanService {
             if (j.url() == null || j.url().isBlank() || j.title() == null || j.title().isBlank()) continue;
             String url = trim(j.url(), 600);
 
-            // Must be a South-African location (read the job's OWN location, not the
-            // company name) and a dev role. If a row like this was wrongly stored
-            // by the old filter, delete it so the board self-heals on re-scan.
-            if (!SaLocation.isSouthAfrican(j.location()) || !DEV.matcher(j.title()).find()) {
+            // Keep only the South-African location filter (read the job's OWN location,
+            // not the company name). Role type and seniority are no longer hard filters —
+            // the pool is now ALL SA jobs, ranked per-user against each CV at read time.
+            // Non-SA rows self-heal (get deleted) on re-scan.
+            if (!SaLocation.isSouthAfrican(j.location())) {
                 repo.findByUrl(url).ifPresent(repo::delete);
                 continue;
             }
 
+            // The default match score (built-in profile) is only a fallback for users
+            // who have no CV yet; it never gates storage.
             CvMatcher.MatchResult m = cvMatcher.match(j.title(), j.description());
-
-            // Hard exclusions: senior/mid titles, >2 years required, or match <= 15%.
-            // Scan the TITLE as well as the description for a years requirement, since
-            // aggregator bodies are truncated (e.g. "Full Stack Developer (3-5 years)").
-            String yearsText = j.title() + ". " + (j.description() == null ? "" : j.description());
-            boolean excluded = SENIOR_TITLE.matcher(j.title()).find()
-                    || m.score() <= MIN_MATCH
-                    || minRequiredYears(yearsText) > 2;
 
             var existing = repo.findByUrl(url);
             if (existing.isPresent()) {
                 ScannedJob e = existing.get();
-                if (excluded) { repo.delete(e); continue; }   // no longer qualifies → remove it
                 e.setLastSeenAt(java.time.LocalDateTime.now());
                 // backfill match/description for rows stored before CV matching existed
                 if (e.getMatchScore() == 0) {
@@ -178,7 +140,6 @@ public class JobScanService {
                 repo.save(e);
                 continue;
             }
-            if (excluded) continue;   // never store senior / over-experienced / low-match roles
             repo.save(ScannedJob.builder()
                     .source(f.source())
                     .company(f.company().name())

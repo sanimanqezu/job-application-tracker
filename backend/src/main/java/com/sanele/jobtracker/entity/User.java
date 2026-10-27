@@ -30,6 +30,21 @@ public class User {
     @Column(nullable = false)
     private String passwordHash;
 
+    // --- career profile (drives per-user job matching) ---
+    @Column(columnDefinition = "TEXT")
+    private String cv;
+
+    @Column(length = 255)
+    private String cvFileName;
+
+    @Column(length = 150)
+    private String desiredJob;
+
+    private Double yearsExperience;
+
+    @Column(length = 60)
+    private String jobCategory;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

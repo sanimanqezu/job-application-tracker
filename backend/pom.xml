@@ -21,7 +21,7 @@
         <java.version>25</java.version>
         <jjwt.version>0.12.3</jjwt.version>
         <!-- 1.18.30 (managed by Boot 3.2.5) predates JDK 23; bump for newer JDKs -->
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.48</lombok.version>
     </properties>
 
     <dependencies>

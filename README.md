@@ -1,5 +1,7 @@
 # Job Application Tracker
 
+[![CI](https://github.com/sanimanqezu/job-application-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/sanimanqezu/job-application-tracker/actions/workflows/ci.yml)
+
 A full-stack web application for tracking job applications throughout your job search. Built with Spring Boot and Next.js.
 
 ## Features
@@ -17,13 +19,22 @@ A full-stack web application for tracking job applications throughout your job s
 
 | Layer     | Technology                                      |
 |-----------|-------------------------------------------------|
-| Backend   | Java 17, Spring Boot 3.2.5, Spring Security, JJWT 0.12.3 |
+| Backend   | Java 25, Spring Boot 3.5.16, Spring Security, JJWT 0.12.3 |
 | Database  | PostgreSQL 16 (H2 for tests)                    |
 | Migrations| Flyway                                          |
 | Frontend  | Next.js 15 (App Router), React 19, TypeScript   |
 | Styling   | Tailwind CSS 4                                  |
 | State     | Zustand                                         |
 | HTTP      | Axios                                           |
+
+## Key Design Points
+
+- **Stateless JWT security** — a single `SecurityFilterChain` runs `JwtAuthFilter` ahead of the username/password filter; sessions are stateless and every request is scoped to the authenticated user.
+- **User-scoped data access** — the service layer loads every application through `findByIdAndUserId`, so one user can never read or mutate another's records; a missing row raises `ResourceNotFoundException`.
+- **RFC 7807 error bodies** — a single `@RestControllerAdvice` returns `ProblemDetail` responses, mapping validation → 400 (with a per-field `errors` map), not-found → 404, conflict → 409, and bad credentials → 401.
+- **Resilient external integration** — the Adzuna aggregator is reached through `AdzunaClient`, which never throws (returns an empty list on any failure) and self-disables when keys are absent, so a downstream outage degrades the job feed instead of breaking the app. It is fully mocked in tests — no test touches the network.
+- **Pipeline reuse** — Adzuna listings flow through the *same* `JobScanService` upsert path (SA-location filter, CV match, URL dedup) as the ATS scanner, so external and scraped jobs are normalized identically.
+- **Schema owned by Flyway** — production runs `ddl-auto: validate` against Flyway migrations (`V1`–`V7`); Hibernate never alters the live schema.
 
 ## Getting Started
 
@@ -49,11 +60,21 @@ mvn spring-boot:run
 # API available at http://localhost:8080
 ```
 
-On startup the backend **automatically starts its own Postgres container** (and
-stops it again when you stop the backend), so a fresh clone just runs. The only
-prerequisite is Docker Desktop — if it's missing, the app prints install steps, or
-run `./install-docker.ps1` (Windows) once. To manage Postgres yourself instead,
-set `JOBTRACKER_AUTO_DB=false`.
+**Pointing at a centralized Postgres (recommended for the portfolio deployment).**
+The datasource is fully env-driven — set `DB_HOST`, `DB_PORT`, `DB_NAME`,
+`DB_USERNAME`, `DB_PASSWORD` to target your shared Postgres instance, start that
+database first, then run the backend. Flyway applies migrations `V1`–`V7` on boot:
+
+```bash
+export DB_HOST=... DB_PORT=5432 DB_NAME=jobtracker DB_USERNAME=... DB_PASSWORD=...
+export JOBTRACKER_AUTO_DB=false   # don't spin up a throwaway local container
+cd backend && mvn spring-boot:run
+```
+
+Otherwise, for a zero-setup local run the backend **automatically starts its own
+Postgres container** (and stops it when you stop the backend), so a fresh clone just
+runs. The only prerequisite is Docker Desktop — if it's missing, the app prints
+install steps, or run `./install-docker.ps1` (Windows) once.
 
 **Frontend**
 
@@ -137,7 +158,13 @@ cd backend
 mvn test
 ```
 
-The test suite includes 8 unit tests for `JobApplicationService` using Mockito and an H2 in-memory database.
+The backend suite has **20 tests** across three layers, all self-contained — no real database and no network calls (the Adzuna client is mocked; the Spring slice test runs against an in-memory H2 context):
+
+| Layer | Class | What it covers |
+|-------|-------|----------------|
+| Service | `JobApplicationServiceTest` (9) | `@ExtendWith(MockitoExtension.class)` — create/find/update/update-status/delete happy paths, status filtering, ownership, and not-found (`ResourceNotFoundException`) |
+| External integration | `AdzunaJobDiscovererTest` (3) | Mocks `AdzunaClient` — skips entirely when unconfigured, queries + stores on the happy path, and degrades gracefully on a downstream Adzuna outage (empty result, no throw) |
+| Controller | `JobApplicationControllerTest` (8) | `@WebMvcTest` + `@MockitoBean` — status codes (200/201/204), delegation, bean-validation → 400, and `@RestControllerAdvice` `ProblemDetail` mapping (404) |
 
 ## Project Structure
 
@@ -153,7 +180,8 @@ job-application-tracker/
 │   │   ├── security/       # JWT + Spring Security config
 │   │   └── exception/      # Global error handling
 │   ├── src/main/resources/
-│   │   └── db/migration/   # Flyway SQL migrations
+│   │   └── db/migration/   # Flyway SQL migrations (V1–V7)
+│   ├── src/test/           # Service, Adzuna-integration & controller slice tests (20)
 │   └── Dockerfile
 ├── frontend/
 │   └── src/
@@ -180,7 +208,9 @@ local defaults — none are required to run the app locally.**
 
 | Variable         | Default                                    | Secret? | Description              |
 |------------------|--------------------------------------------|:-------:|--------------------------|
-| DB_URL           | jdbc:postgresql://localhost:5433/jobtracker|         | PostgreSQL JDBC URL      |
+| DB_HOST          | localhost                                  |         | PostgreSQL host          |
+| DB_PORT          | 5432                                       |         | PostgreSQL port          |
+| DB_NAME          | jobtracker                                 |         | Database name            |
 | DB_USERNAME      | postgres                                   |         | Database username        |
 | DB_PASSWORD      | postgres                                   |   🔑    | Database password        |
 | JWT_SECRET       | local-dev default (override in prod)       |   🔑    | JWT signing secret (256+ bits) |

@@ -1,54 +1,32 @@
-version: "3.9"
-
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: jobtracker-postgres
-    environment:
-      POSTGRES_DB: jobtracker
-      # Local-dev defaults; override via a gitignored .env for anything real.
-      POSTGRES_USER: ${DB_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: jobtracker-backend
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # All secrets come from the environment (a gitignored .env or your shell),
-    # NEVER hardcoded here. Safe defaults let it run locally with no setup.
     environment:
-      DB_URL: jdbc:postgresql://postgres:5432/jobtracker
-      DB_USERNAME: ${DB_USERNAME:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me-must-be-at-least-256-bits-long}
       JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       ADZUNA_APP_ID: ${ADZUNA_APP_ID:-}
       ADZUNA_APP_KEY: ${ADZUNA_APP_KEY:-}
-      # In this compose stack Postgres is managed by compose itself, so the
-      # backend's own auto-start-the-DB bootstrap must stay off.
-      JOBTRACKER_AUTO_DB: "false"
+      JOBTRACKER_AUTO_DB: 'false'
+      DB_HOST: postgres
+      DB_PORT: '5432'
+      DB_NAME: jobtracker
     ports:
-      - "8080:8080"
+    - 8080:8080
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      test:
+      - CMD-SHELL
+      - wget -q --spider http://localhost:8080/actuator/health || exit 1
       interval: 15s
       timeout: 10s
       retries: 5
       start_period: 30s
-
+    networks:
+    - portfolio-net
   frontend:
     build:
       context: ./frontend
@@ -60,7 +38,9 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: http://backend:8080
     ports:
-      - "3000:3000"
-
-volumes:
-  postgres_data:
+    - 3000:3000
+    networks:
+    - portfolio-net
+networks:
+  portfolio-net:
+    external: true

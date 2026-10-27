@@ -8,7 +8,7 @@ spring:
   datasource:
     # Local runs use a DEDICATED Postgres on 5433 (port 5432 is often taken by
     # another project's container). Override DB_URL if yours lives elsewhere.
-    url: ${DB_URL:jdbc:postgresql://localhost:5433/jobtracker}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:jobtracker}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
@@ -76,3 +76,12 @@ logging:
   level:
     com.sanele.jobtracker: INFO
     org.springframework.security: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
